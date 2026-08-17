@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import 'services/location_service.dart';
+import 'services/orientation_service.dart';
 
 class SkyMapApp extends StatelessWidget {
   const SkyMapApp({super.key});
@@ -28,8 +32,12 @@ class LocationScreen extends StatefulWidget {
 
 class _LocationScreenState extends State<LocationScreen> {
   final LocationService _locationService = LocationService();
+  final OrientationService _orientationService = OrientationService();
+
+  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
 
   String _message = 'Location not loaded.';
+  String _heading = 'Magnetometer: waiting...';
 
   Future<void> _getLocation() async {
     setState(() {
@@ -51,6 +59,35 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
+  void _startSensors() {
+    _magnetometerSubscription ??=
+        _orientationService.magnetometer.listen((event) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _heading =
+            'Magnetometer:\n'
+            'X: ${event.x.toStringAsFixed(2)}\n'
+            'Y: ${event.y.toStringAsFixed(2)}\n'
+            'Z: ${event.z.toStringAsFixed(2)}';
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _startSensors();
+  }
+
+  @override
+  void dispose() {
+    _magnetometerSubscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +100,11 @@ class _LocationScreenState extends State<LocationScreen> {
           children: [
             Text(
               _message,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _heading,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
