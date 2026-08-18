@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Parse Yale Bright Star Catalog (gzipped fixed‑width) and output JSON.
+Parse Yale Bright Star Catalog (gzipped fixed-width) and merge with IAU common names.
+Outputs JSON with star data.
 """
 
+import csv
 import gzip
 import json
 import sys
@@ -11,9 +13,10 @@ from typing import Optional, List, Dict, Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CACHE_FILE = PROJECT_ROOT / "data" / "catalog.dat.gz"
+COMMON_NAMES_FILE = PROJECT_ROOT / "data" / "iau_proper_stars.csv"
 OUTPUT_FILE = PROJECT_ROOT / "assets" / "data" / "stars.json"
 
-# Fixed‑width field offsets (0‑based)
+# Fixed-width field offsets
 HR_START, HR_END = 0, 4
 NAME_START, NAME_END = 4, 14
 RA_HOURS_START, RA_HOURS_END = 75, 77
@@ -44,7 +47,40 @@ def parse_dec(sign: str, degrees: float, minutes: float, seconds: float) -> floa
     return -value if sign == "-" else value
 
 
-def parse_star_line(line: str) -> Optional[Dict[str, Any]]:
+def load_common_names() -> Dict[str, str]:
+    common_names = {}
+
+    if not COMMON_NAMES_FILE.exists():
+        print(
+            f"Warning: common names file not found: "
+            f"{COMMON_NAMES_FILE}",
+            file=sys.stderr,
+        )
+        return common_names
+
+    with COMMON_NAMES_FILE.open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            designation = row.get("Designation", "").strip()
+            name = row.get("Proper Names", "").strip()
+
+            if not designation or not name:
+                continue
+
+            if designation.startswith("HR "):
+                hr = designation[3:].strip()
+
+                if hr.isdigit():
+                    common_names[hr] = name
+
+    return common_names
+
+def parse_star_line(line: str, common_names: Dict[str, str]) -> Optional[Dict[str, Any]]:
     hr = line[HR_START:HR_END].strip()
     if not hr:
         return None
@@ -54,17 +90,18 @@ def parse_star_line(line: str) -> Optional[Dict[str, Any]]:
         return None
 
     name = line[NAME_START:NAME_END].strip() or None
-
     vmag = parse_float(line[VMAG_START:VMAG_END])
     if vmag is None:
         return None
 
+    # RA
     ra_hours = parse_float(line[RA_HOURS_START:RA_HOURS_END])
     ra_minutes = parse_float(line[RA_MINUTES_START:RA_MINUTES_END])
     ra_seconds = parse_float(line[RA_SECONDS_START:RA_SECONDS_END])
     if None in (ra_hours, ra_minutes, ra_seconds):
         return None
 
+    # Dec
     dec_sign = line[DEC_SIGN_START:DEC_SIGN_END]
     dec_degrees = parse_float(line[DEC_DEGREES_START:DEC_DEGREES_END])
     dec_minutes = parse_float(line[DEC_MINUTES_START:DEC_MINUTES_END])
@@ -72,14 +109,14 @@ def parse_star_line(line: str) -> Optional[Dict[str, Any]]:
     if None in (dec_degrees, dec_minutes, dec_seconds) or dec_sign not in ("+", "-"):
         return None
 
-    # RA validation
-    if not (0 <= ra_hours <= 24) or not (0 <= ra_minutes < 60) or not (0 <= ra_seconds < 60):
+    # Validate RA
+    if not (0 <= ra_hours <= 24 and 0 <= ra_minutes < 60 and 0 <= ra_seconds < 60):
         return None
     if ra_hours == 24 and (ra_minutes != 0 or ra_seconds != 0):
         return None
 
-    # Dec validation
-    if not (0 <= dec_degrees <= 90) or not (0 <= dec_minutes < 60) or not (0 <= dec_seconds < 60):
+    # Validate Dec
+    if not (0 <= dec_degrees <= 90 and 0 <= dec_minutes < 60 and 0 <= dec_seconds < 60):
         return None
     dec_abs = dec_degrees + dec_minutes / 60.0 + dec_seconds / 3600.0
     if dec_abs > 90 or (dec_degrees == 90 and (dec_minutes != 0 or dec_seconds != 0)):
@@ -92,6 +129,7 @@ def parse_star_line(line: str) -> Optional[Dict[str, Any]]:
     return {
         "id": star_id,
         "name": name,
+        "common_name": common_names.get(str(star_id)),
         "magnitude": round(vmag, 2),
         "spectral_type": spectral_type,
         "ra": round(ra, 6),
@@ -99,12 +137,12 @@ def parse_star_line(line: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def parse_catalog() -> List[Dict[str, Any]]:
+def parse_catalog(common_names: Dict[str, str]) -> List[Dict[str, Any]]:
     stars = []
     with gzip.open(CACHE_FILE, "rt", encoding="ascii", errors="replace") as f:
         for line in f:
             if len(line) >= MIN_LINE_LENGTH and line.strip():
-                star = parse_star_line(line)
+                star = parse_star_line(line, common_names)
                 if star:
                     stars.append(star)
     return stars
@@ -121,9 +159,17 @@ def main() -> None:
         print(f"Catalog not found: {CACHE_FILE}", file=sys.stderr)
         sys.exit(1)
 
+    print("Loading common star names...")
+    common_names = load_common_names()
+    print(f"Loaded {len(common_names)} common names.")
+
     print("Parsing star catalog...")
-    stars = parse_catalog()
+    stars = parse_catalog(common_names)
     print(f"Parsed {len(stars)} stars.")
+
+    named_stars = sum(1 for s in stars if s["common_name"])
+    print(f"Matched {named_stars} common star names.")
+
     print(f"Writing catalog to: {OUTPUT_FILE}")
     write_catalog(stars)
     print("Done.")
