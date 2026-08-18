@@ -4,72 +4,118 @@ import 'dart:math' as math;
 import 'package:sensors_plus/sensors_plus.dart';
 
 class OrientationService {
-  Stream<AccelerometerEvent> get accelerometer =>
-      accelerometerEventStream();
+  OrientationService() {
+    _startSensors();
+  }
 
-  Stream<MagnetometerEvent> get magnetometer =>
-      magnetometerEventStream();
+  final StreamController<double> _headingController =
+      StreamController<double>.broadcast();
 
-  Stream<double> get heading {
-    final controller = StreamController<double>();
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
 
-    AccelerometerEvent? acceleration;
-    MagnetometerEvent? magneticField;
+  List<double>? _accelerometer;
+  List<double>? _magnetometer;
 
-    late final StreamSubscription<AccelerometerEvent> accelerometerSubscription;
-    late final StreamSubscription<MagnetometerEvent> magnetometerSubscription;
+  Stream<double> get heading => _headingController.stream;
 
-    void calculateHeading() {
-      if (acceleration == null || magneticField == null) {
-        return;
-      }
+  void _startSensors() {
+    _accelerometerSubscription =
+        accelerometerEventStream().listen((event) {
+      _accelerometer = [
+        event.x,
+        event.y,
+        event.z,
+      ];
 
-      final ax = acceleration!.x;
-      final ay = acceleration!.y;
-      final az = acceleration!.z;
+      _updateHeading();
+    });
 
-      final mx = magneticField!.x;
-      final my = magneticField!.y;
-      final mz = magneticField!.z;
+    _magnetometerSubscription =
+        magnetometerEventStream().listen((event) {
+      _magnetometer = [
+        event.x,
+        event.y,
+        event.z,
+      ];
 
-      final pitch = math.atan2(
-        -ax,
-        math.sqrt(ay * ay + az * az),
-      );
+      _updateHeading();
+    });
+  }
 
-      final roll = math.atan2(ay, az);
+  void _updateHeading() {
+    final accelerometer = _accelerometer;
+    final magnetometer = _magnetometer;
 
-      final x = mx * math.cos(pitch) +
-          mz * math.sin(pitch);
-
-      final y = mx * math.sin(roll) * math.sin(pitch) +
-          my * math.cos(roll) -
-          mz * math.sin(roll) * math.cos(pitch);
-
-      var heading = math.atan2(y, x) * 180 / math.pi;
-
-      if (heading < 0) {
-        heading += 360;
-      }
-
-      controller.add(heading);
+    if (accelerometer == null || magnetometer == null) {
+      return;
     }
 
-    accelerometerSubscription = accelerometer.listen((event) {
-      acceleration = event;
-      calculateHeading();
-    });
+    final heading = _calculateHeading(
+      accelerometer,
+      magnetometer,
+    );
 
-    magnetometerSubscription = magnetometer.listen((event) {
-      magneticField = event;
-      calculateHeading();
-    });
+    if (heading == null) {
+      return;
+    }
 
-    controller.onCancel = () async {
-      await accelerometerSubscription.cancel();
-      await magnetometerSubscription.cancel();
-    };
+    _headingController.add(heading);
+  }
 
-    return controller.stream;
+  double? _calculateHeading(
+    List<double> accelerometer,
+    List<double> magnetometer,
+  ) {
+    final ax = accelerometer[0];
+    final ay = accelerometer[1];
+    final az = accelerometer[2];
+
+    final mx = magnetometer[0];
+    final my = magnetometer[1];
+    final mz = magnetometer[2];
+
+    final accelerationMagnitude =
+        math.sqrt(ax * ax + ay * ay + az * az);
+
+    if (accelerationMagnitude == 0) {
+      return null;
+    }
+
+    final magneticMagnitude =
+        math.sqrt(mx * mx + my * my + mz * mz);
+
+    if (magneticMagnitude == 0) {
+      return null;
+    }
+
+    final nx = ax / accelerationMagnitude;
+    final ny = ay / accelerationMagnitude;
+    final nz = az / accelerationMagnitude;
+
+    final mxn = mx / magneticMagnitude;
+    final myn = my / magneticMagnitude;
+    final mzn = mz / magneticMagnitude;
+
+    final hx = myn * nz - mzn * ny;
+    final hy = mzn * nx - mxn * nz;
+
+    if (hx == 0 && hy == 0) {
+      return null;
+    }
+
+    var heading = math.atan2(hy, hx) * 180 / math.pi;
+
+    if (heading < 0) {
+      heading += 360;
+    }
+
+    return heading;
+  }
+
+  Future<void> dispose() async {
+    await _accelerometerSubscription?.cancel();
+    await _magnetometerSubscription?.cancel();
+    await _headingController.close();
   }
 }

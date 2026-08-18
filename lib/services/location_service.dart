@@ -1,11 +1,14 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
+  Position? _lastKnownPosition;
+
   Future<Position> getCurrentLocation() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled =
+        await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
-      throw Exception('Location services are disabled.');
+      throw LocationServiceDisabledException();
     }
 
     var permission = await Geolocator.checkPermission();
@@ -15,13 +18,45 @@ class LocationService {
     }
 
     if (permission == LocationPermission.denied) {
-      throw Exception('Location permission was denied.');
+      throw LocationPermissionDeniedException();
     }
 
     if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permission was permanently denied.');
+      throw LocationPermissionDeniedForeverException();
     }
 
-    return Geolocator.getCurrentPosition();
+    // Try the cached location first.
+    final lastKnown = await Geolocator.getLastKnownPosition();
+
+    if (lastKnown != null) {
+      _lastKnownPosition = lastKnown;
+    }
+
+    try {
+      final current = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      ).timeout(
+        const Duration(seconds: 5),
+      );
+
+      _lastKnownPosition = current;
+
+      return current;
+    } on Exception {
+      if (_lastKnownPosition != null) {
+        return _lastKnownPosition!;
+      }
+
+      rethrow;
+    }
   }
 }
+
+class LocationServiceDisabledException implements Exception {}
+
+class LocationPermissionDeniedException implements Exception {}
+
+class LocationPermissionDeniedForeverException
+    implements Exception {}

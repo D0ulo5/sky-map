@@ -12,7 +12,10 @@ class SkyMapApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: const ColorScheme.dark(
+          surface: Colors.black,
+        ),
       ),
       home: const LocationScreen(),
     );

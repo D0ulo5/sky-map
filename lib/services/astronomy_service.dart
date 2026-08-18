@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'location_service.dart';
+
 class SkyPosition {
   final double azimuth;
   final double altitude;
@@ -11,6 +13,23 @@ class SkyPosition {
 }
 
 class AstronomyService {
+  Future<SkyPosition> getStarPosition({
+    required double rightAscension,
+    required double declination,
+    required LocationService locationService,
+    DateTime? time,
+  }) async {
+    final location = await locationService.getCurrentLocation();
+
+    return equatorialToHorizontal(
+      rightAscension: rightAscension,
+      declination: declination,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      time: time ?? DateTime.now(),
+    );
+  }
+
   SkyPosition equatorialToHorizontal({
     required double rightAscension,
     required double declination,
@@ -23,28 +42,37 @@ class AstronomyService {
       time: time,
     );
 
-    final hourAngle = _normalizeDegrees(lst - rightAscension);
+    final hourAngle = _normalizeDegrees(
+      lst - rightAscension,
+    );
 
     final latitudeRadians = _toRadians(latitude);
     final declinationRadians = _toRadians(declination);
     final hourAngleRadians = _toRadians(hourAngle);
 
+    final sinAltitude =
+        math.sin(latitudeRadians) *
+            math.sin(declinationRadians) +
+        math.cos(latitudeRadians) *
+            math.cos(declinationRadians) *
+            math.cos(hourAngleRadians);
+
     final altitude = math.asin(
-      math.sin(latitudeRadians) *
-              math.sin(declinationRadians) +
-          math.cos(latitudeRadians) *
-              math.cos(declinationRadians) *
-              math.cos(hourAngleRadians),
+      sinAltitude.clamp(-1.0, 1.0),
     );
 
     final azimuth = math.atan2(
       math.sin(hourAngleRadians),
-      math.cos(hourAngleRadians) * math.sin(latitudeRadians) -
-          math.tan(declinationRadians) * math.cos(latitudeRadians),
+      math.cos(hourAngleRadians) *
+              math.sin(latitudeRadians) -
+          math.tan(declinationRadians) *
+              math.cos(latitudeRadians),
     );
 
     return SkyPosition(
-      azimuth: _normalizeDegrees(_toDegrees(azimuth) + 180),
+      azimuth: _normalizeDegrees(
+        _toDegrees(azimuth) + 180,
+      ),
       altitude: _toDegrees(altitude),
     );
   }
@@ -62,11 +90,14 @@ class AstronomyService {
         280.46061837 +
         360.98564736629 * d;
 
-    return _normalizeDegrees(gmst + longitude);
+    return _normalizeDegrees(
+      gmst + longitude,
+    );
   }
 
   double _julianDate(DateTime time) {
-    return time.millisecondsSinceEpoch / 86400000 + 2440587.5;
+    return time.millisecondsSinceEpoch / 86400000 +
+        2440587.5;
   }
 
   double _normalizeDegrees(double value) {
