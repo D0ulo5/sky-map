@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/astronomy_service.dart';
 import '../services/location_service.dart';
 import '../services/orientation_service.dart';
 
@@ -15,10 +16,12 @@ class LocationScreen extends StatefulWidget {
 class _LocationScreenState extends State<LocationScreen> {
   final LocationService _locationService = LocationService();
   final OrientationService _orientationService = OrientationService();
+  final AstronomyService _astronomyService = AstronomyService();
 
   StreamSubscription<double>? _headingSubscription;
 
   String _location = 'Location not loaded.';
+  String _sun = 'Test object not calculated.';
   double? _heading;
 
   @override
@@ -43,10 +46,23 @@ class _LocationScreenState extends State<LocationScreen> {
     try {
       final position = await _locationService.getCurrentLocation();
 
+      final skyPosition = _astronomyService.equatorialToHorizontal(
+        rightAscension: 150.0,
+        declination: 11.0,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        time: DateTime.now(),
+      );
+
       setState(() {
         _location =
             'Latitude: ${position.latitude}\n'
             'Longitude: ${position.longitude}';
+
+        _sun =
+            'Test object: Sun\n'
+            'Azimuth: ${skyPosition.azimuth.toStringAsFixed(1)}°\n'
+            'Altitude: ${skyPosition.altitude.toStringAsFixed(1)}°';
       });
     } catch (error) {
       setState(() {
@@ -73,6 +89,11 @@ class _LocationScreenState extends State<LocationScreen> {
           children: [
             Text(
               _location,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _sun,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
