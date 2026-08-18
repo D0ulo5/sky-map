@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'app.dart';
+import 'screens/sky_screen.dart';
 
 void main() {
-  runApp(const SkyMapApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(
+    const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.dark,
+      home: SkyScreen(),
+    ),
+  );
 }
