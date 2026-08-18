@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 import '../services/location_service.dart';
 import '../services/orientation_service.dart';
@@ -17,25 +16,21 @@ class _LocationScreenState extends State<LocationScreen> {
   final LocationService _locationService = LocationService();
   final OrientationService _orientationService = OrientationService();
 
-  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
+  StreamSubscription<double>? _headingSubscription;
 
   String _location = 'Location not loaded.';
-  String _sensor = 'Magnetometer: waiting...';
+  double? _heading;
 
   @override
   void initState() {
     super.initState();
 
-    _magnetometerSubscription =
-        _orientationService.magnetometer.listen((event) {
+    _headingSubscription =
+        _orientationService.heading.listen((heading) {
       if (!mounted) return;
 
       setState(() {
-        _sensor =
-            'Magnetometer\n'
-            'X: ${event.x.toStringAsFixed(2)}\n'
-            'Y: ${event.y.toStringAsFixed(2)}\n'
-            'Z: ${event.z.toStringAsFixed(2)}';
+        _heading = heading;
       });
     });
   }
@@ -62,7 +57,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   void dispose() {
-    _magnetometerSubscription?.cancel();
+    _headingSubscription?.cancel();
     super.dispose();
   }
 
@@ -82,8 +77,9 @@ class _LocationScreenState extends State<LocationScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              _sensor,
-              textAlign: TextAlign.center,
+              _heading == null
+                  ? 'Heading: waiting...'
+                  : 'Heading: ${_heading!.toStringAsFixed(1)}°',
             ),
             const SizedBox(height: 24),
             FilledButton(
