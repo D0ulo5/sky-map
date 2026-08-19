@@ -25,3 +25,15 @@ final class SkyOrientationChanged extends SkyEvent {
   @override
   List<Object?> get props => [orientation];
 }
+
+final class SkyHorizonToggled extends SkyEvent {
+  const SkyHorizonToggled();
+}
+
+final class SkyConstellationsToggled extends SkyEvent {
+  const SkyConstellationsToggled();
+}
+
+final class SkyObjectSelectionToggled extends SkyEvent {
+  const SkyObjectSelectionToggled();
+}

@@ -32,6 +32,14 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
       _onPositionsUpdateRequested,
     );
     on<SkyOrientationChanged>(_onOrientationChanged);
+
+    on<SkyHorizonToggled>(_onHorizonToggled);
+    on<SkyConstellationsToggled>(
+      _onConstellationsToggled,
+    );
+    on<SkyObjectSelectionToggled>(
+      _onObjectSelectionToggled,
+    );
   }
 
   Future<void> _onLoadRequested(
@@ -68,7 +76,8 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
           constellations: constellations,
           location: location,
           positions: positions,
-          lastPositionUpdate: DateTime.now().toUtc(),
+          lastPositionUpdate:
+              DateTime.now().toUtc(),
         ),
       );
 
@@ -118,6 +127,41 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
     emit(
       state.copyWith(
         orientation: event.orientation,
+      ),
+    );
+  }
+
+  void _onHorizonToggled(
+    SkyHorizonToggled event,
+    Emitter<SkyState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        showHorizon: !state.showHorizon,
+      ),
+    );
+  }
+
+  void _onConstellationsToggled(
+    SkyConstellationsToggled event,
+    Emitter<SkyState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        showConstellations:
+            !state.showConstellations,
+      ),
+    );
+  }
+
+  void _onObjectSelectionToggled(
+    SkyObjectSelectionToggled event,
+    Emitter<SkyState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        objectSelectionEnabled:
+            !state.objectSelectionEnabled,
       ),
     );
   }

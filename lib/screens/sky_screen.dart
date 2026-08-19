@@ -7,6 +7,7 @@ import '../blocs/sky/sky_state.dart';
 import '../services/constellation_service.dart';
 import '../services/location_service.dart';
 import '../services/orientation_service.dart';
+import '../widgets/sky_dock.dart';
 import '../widgets/sky_painter.dart';
 import '../services/star_catalog_service.dart';
 
@@ -41,7 +42,9 @@ class _SkyView extends StatelessWidget {
 
           case SkyStatus.error:
             return _ErrorView(
-              message: state.errorMessage ?? 'Something went wrong.',
+              message:
+                  state.errorMessage ??
+                      'Something went wrong.',
             );
 
           case SkyStatus.loaded:
@@ -121,14 +124,32 @@ class _LoadedView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: CustomPaint(
-          painter: SkyPainter(
-            stars: state.stars,
-            positions: state.positions,
-            constellations: state.constellations,
-            orientation: orientation,
-          ),
-          child: const SizedBox.expand(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(
+              painter: SkyPainter(
+                stars: state.stars,
+                positions: state.positions,
+                constellations:
+                    state.constellations,
+                orientation: orientation,
+                showHorizon:
+                    state.showHorizon,
+                showConstellations:
+                    state.showConstellations,
+              ),
+            ),
+
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 12,
+              child: Center(
+                child: SkyDock(),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -13,12 +13,16 @@ class SkyPainter extends CustomPainter {
   final List<SkyStar> stars;
   final List<CelestialPosition> positions;
   final List<Constellation> constellations;
+  final bool showHorizon;
+  final bool showConstellations;
 
   const SkyPainter({
     required this.orientation,
     required this.stars,
     required this.positions,
     required this.constellations,
+    this.showHorizon = true,
+    this.showConstellations = true,
   });
 
   @override
@@ -40,16 +44,20 @@ class SkyPainter extends CustomPainter {
       starPositions,
     );
 
-    _drawConstellations(
-      canvas,
-      size,
-      center,
-    );
+    if (showConstellations) {
+      _drawConstellations(
+        canvas,
+        size,
+        center,
+      );
+    }
 
-    _drawHorizon(
-      canvas,
-      size,
-    );
+    if (showHorizon) {
+      _drawHorizon(
+        canvas,
+        size,
+      );
+    }
 
     // Keep the aiming point above everything else.
     _drawCenterMarker(
@@ -465,7 +473,7 @@ class SkyPainter extends CustomPainter {
     );
 
     final paint = Paint()
-      ..color = const Color.fromARGB(255, 94, 139, 118).withValues(
+      ..color = const Color.fromARGB(255, 115, 94, 139).withValues(
         alpha: 0.55,
       )
       ..strokeWidth = 1.2
@@ -515,7 +523,7 @@ class SkyPainter extends CustomPainter {
     );
 
     final paint = Paint()
-      ..color = const Color.fromARGB(255, 94, 139, 118).withValues(
+      ..color = const Color.fromARGB(255, 110, 94, 139).withValues(
         alpha: 0.65,
       )
       ..strokeWidth = 1.0;
@@ -568,7 +576,11 @@ class SkyPainter extends CustomPainter {
         oldDelegate.stars != stars ||
         oldDelegate.positions != positions ||
         oldDelegate.constellations !=
-            constellations;
+            constellations ||
+        oldDelegate.showHorizon !=
+            showHorizon ||
+        oldDelegate.showConstellations !=
+            showConstellations;
   }
 }
 
