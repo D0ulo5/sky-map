@@ -1,34 +1,31 @@
 class DeviceOrientation {
-  /// Direction the back of the phone is facing.
+  /// Direction the BACK of the phone faces.
   ///
-  /// World coordinates:
+  /// World coordinate system:
   /// X = North
   /// Y = East
   /// Z = Up
-  final double forwardX;
-  final double forwardY;
-  final double forwardZ;
+  final double backX;
+  final double backY;
+  final double backZ;
 
-  /// Direction toward the top edge of the screen.
+  /// Direction toward the TOP of the screen.
   final double upX;
   final double upY;
   final double upZ;
 
-  /// Direction toward the right edge of the screen.
+  /// Direction toward the RIGHT side of the screen.
   final double rightX;
   final double rightY;
   final double rightZ;
 
-  /// Back-of-phone azimuth.
   final double azimuth;
-
-  /// Back-of-phone altitude.
   final double altitude;
 
   const DeviceOrientation({
-    required this.forwardX,
-    required this.forwardY,
-    required this.forwardZ,
+    required this.backX,
+    required this.backY,
+    required this.backZ,
     required this.upX,
     required this.upY,
     required this.upZ,

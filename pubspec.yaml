@@ -35,6 +35,8 @@ dependencies:
   geolocator: ^14.0.3
   sensors_plus: ^7.1.0
   provider: ^6.1.5+1
+  flutter_bloc: ^9.1.1
+  equatable: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -45,4 +47,4 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/data/stars.json
+    - assets/data/
