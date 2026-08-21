@@ -130,7 +130,7 @@ class _LoadedView extends StatelessWidget {
             CustomPaint(
               painter: SkyPainter(
                 stars: state.stars,
-                positions: state.positions,
+                starVectors: state.starVectors,
                 constellations:
                     state.constellations,
                 orientation: orientation,

@@ -6,6 +6,8 @@ import '../../models/device_orientation.dart';
 import '../../models/observer_location.dart';
 import '../../models/sky_star.dart';
 
+typedef WorldVector = List<double>;
+
 enum SkyStatus {
   initial,
   loading,
@@ -22,6 +24,11 @@ class SkyState extends Equatable {
   final List<SkyStar> stars;
   final List<Constellation> constellations;
   final List<CelestialPosition> positions;
+
+  // World-space unit vectors for each star, parallel to `positions`.
+  // Derived from alt/az and only recomputed when `positions` changes,
+  // not on every orientation/paint tick.
+  final List<WorldVector> starVectors;
 
   final DateTime? lastPositionUpdate;
   final String? errorMessage;
@@ -43,6 +50,7 @@ class SkyState extends Equatable {
     this.stars = const [],
     this.constellations = const [],
     this.positions = const [],
+    this.starVectors = const [],
     this.lastPositionUpdate,
     this.errorMessage,
     this.showHorizon = true,
@@ -88,6 +96,7 @@ class SkyState extends Equatable {
     List<SkyStar>? stars,
     List<Constellation>? constellations,
     List<CelestialPosition>? positions,
+    List<WorldVector>? starVectors,
     DateTime? lastPositionUpdate,
     String? errorMessage,
     bool? showHorizon,
@@ -103,6 +112,7 @@ class SkyState extends Equatable {
       stars: stars ?? this.stars,
       constellations: constellations ?? this.constellations,
       positions: positions ?? this.positions,
+      starVectors: starVectors ?? this.starVectors,
       lastPositionUpdate:
           lastPositionUpdate ?? this.lastPositionUpdate,
       errorMessage: errorMessage,
@@ -127,6 +137,7 @@ class SkyState extends Equatable {
         stars,
         constellations,
         positions,
+        starVectors,
         lastPositionUpdate,
         errorMessage,
         showHorizon,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../astronomy/coordinate_converter.dart';
+import '../../astronomy/sky_coordinates.dart';
 import '../../models/celestial_position.dart';
 import '../../services/constellation_service.dart';
 import '../../services/location_service.dart';
@@ -76,6 +77,7 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
           constellations: constellations,
           location: location,
           positions: positions,
+          starVectors: _calculateWorldVectors(positions),
           lastPositionUpdate:
               DateTime.now().toUtc(),
         ),
@@ -115,6 +117,7 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
     emit(
       state.copyWith(
         positions: positions,
+        starVectors: _calculateWorldVectors(positions),
         lastPositionUpdate: utc,
       ),
     );
@@ -179,6 +182,23 @@ class SkyBloc extends Bloc<SkyEvent, SkyState> {
         utc: utc,
       );
     }).toList();
+  }
+
+  // Alt/az -> unit vector is only a function of `positions`, which is
+  // recalculated every 30s. Doing it here (once per update) instead of
+  // in SkyPainter.paint() (once per orientation frame) avoids redoing
+  // trig for every star on every sensor tick.
+  List<WorldVector> _calculateWorldVectors(
+    List<CelestialPosition> positions,
+  ) {
+    return positions
+        .map(
+          (p) => SkyCoordinates.horizontalToVector(
+            azimuth: p.azimuth,
+            altitude: p.altitude,
+          ),
+        )
+        .toList(growable: false);
   }
 
   void _startOrientation() {

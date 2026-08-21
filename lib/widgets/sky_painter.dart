@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../astronomy/sky_coordinates.dart';
-import '../models/celestial_position.dart';
+import '../blocs/sky/sky_state.dart';
 import '../models/constellation.dart';
 import '../models/device_orientation.dart';
 import '../models/sky_star.dart';
@@ -11,7 +11,7 @@ import '../models/sky_star.dart';
 class SkyPainter extends CustomPainter {
   final DeviceOrientation orientation;
   final List<SkyStar> stars;
-  final List<CelestialPosition> positions;
+  final List<WorldVector> starVectors;
   final List<Constellation> constellations;
   final bool showHorizon;
   final bool showConstellations;
@@ -19,7 +19,7 @@ class SkyPainter extends CustomPainter {
   const SkyPainter({
     required this.orientation,
     required this.stars,
-    required this.positions,
+    required this.starVectors,
     required this.constellations,
     this.showHorizon = true,
     this.showConstellations = true,
@@ -34,7 +34,13 @@ class SkyPainter extends CustomPainter {
       size.height / 2,
     );
 
+    // Built once per frame and shared between star dots and
+    // constellation lines, instead of recomputing world vectors
+    // separately for each.
+    final starWorldVectors = _starWorldVectorsById();
+
     final starPositions = _projectStars(
+      starWorldVectors,
       center,
       size,
     );
@@ -47,6 +53,7 @@ class SkyPainter extends CustomPainter {
     if (showConstellations) {
       _drawConstellations(
         canvas,
+        starWorldVectors,
         size,
         center,
       );
@@ -66,39 +73,44 @@ class SkyPainter extends CustomPainter {
     );
   }
 
-  // Converts the prepared Alt/Az positions into screen coordinates.
+  // World vectors are already computed by SkyBloc whenever `positions`
+  // changes (every 30s). This just indexes them by star id — no trig,
+  // no per-frame astronomy.
+  Map<int, List<double>> _starWorldVectorsById() {
+    final result = <int, List<double>>{};
+
+    final count = math.min(
+      stars.length,
+      starVectors.length,
+    );
+
+    for (var i = 0; i < count; i++) {
+      result[stars[i].id] = starVectors[i];
+    }
+
+    return result;
+  }
+
+  // Converts the prepared world vectors into screen coordinates.
   //
   // Astronomy has already been done by SkyBloc. The painter only deals
   // with the camera and the canvas.
   Map<int, Offset> _projectStars(
+    Map<int, List<double>> starWorldVectors,
     Offset center,
     Size size,
   ) {
     final result = <int, Offset>{};
 
-    final count = math.min(
-      stars.length,
-      positions.length,
-    );
-
-    for (var i = 0; i < count; i++) {
-      final star = stars[i];
-      final position = positions[i];
-
-      final world =
-          SkyCoordinates.horizontalToVector(
-        azimuth: position.azimuth,
-        altitude: position.altitude,
-      );
-
+    for (final entry in starWorldVectors.entries) {
       final point = _projectStar(
-        world,
+        entry.value,
         center,
         size,
       );
 
       if (point != null) {
-        result[star.id] = point;
+        result[entry.key] = point;
       }
     }
 
@@ -146,15 +158,13 @@ class SkyPainter extends CustomPainter {
   // because one of its stars has moved outside the screen.
   void _drawConstellations(
     Canvas canvas,
+    Map<int, List<double>> starWorldPositions,
     Size size,
     Offset center,
   ) {
     if (constellations.isEmpty) {
       return;
     }
-
-    final starWorldPositions =
-        _buildStarWorldPositions();
 
     final paint = Paint()
       ..color = Colors.white.withValues(
@@ -214,30 +224,6 @@ class SkyPainter extends CustomPainter {
         paint,
       );
     }
-  }
-
-  // Builds a lookup so constellation lines don't repeatedly search through
-  // the complete star list.
-  Map<int, List<double>> _buildStarWorldPositions() {
-    final result = <int, List<double>>{};
-
-    final count = math.min(
-      stars.length,
-      positions.length,
-    );
-
-    for (var i = 0; i < count; i++) {
-      final star = stars[i];
-      final position = positions[i];
-
-      result[star.id] =
-          SkyCoordinates.horizontalToVector(
-        azimuth: position.azimuth,
-        altitude: position.altitude,
-      );
-    }
-
-    return result;
   }
 
   // Allows constellation endpoints to move outside the screen naturally.
@@ -574,7 +560,7 @@ class SkyPainter extends CustomPainter {
     return oldDelegate.orientation !=
             orientation ||
         oldDelegate.stars != stars ||
-        oldDelegate.positions != positions ||
+        oldDelegate.starVectors != starVectors ||
         oldDelegate.constellations !=
             constellations ||
         oldDelegate.showHorizon !=
